@@ -31,6 +31,10 @@ nltk.download('stopwords', quiet=True)
 train_df = pd.read_json('banking77_train.json', lines=True)
 test_df = pd.read_json('banking77_test.json', lines=True)
 
+# Limit to first 5000 samples
+train_df = train_df.iloc[:5000]
+test_df = test_df.iloc[:5000]
+
 x_train = train_df['text'].tolist()
 y_train = train_df['category'].tolist()
 
@@ -76,7 +80,7 @@ x_train_glove, x_test_glove = [], []
 def get_glove_embedding(text, model):
     words = text.split()
     word_vectors = [model[word] for word in words if word in model]
-    return np.mean(word_vectors, axis=0) if word_vectors else np.zeros((50``))
+    return np.mean(word_vectors, axis=0) if word_vectors else np.zeros((50))
 
 x_train_glove = np.array([get_glove_embedding(text, glove_model) for text in x_train])
 x_test_glove = np.array([get_glove_embedding(text, glove_model) for text in x_test])
