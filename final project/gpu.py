@@ -159,7 +159,7 @@ for embed_name, (X_tr, X_te) in embeddings.items():
 results_df = pd.DataFrame(results)
 
 # Save detailed results with confusion matrix to TXT
-with open("banking77_detailed_results.txt", "w") as f:
+with open("full_dataset_results.txt", "w") as f:
     # Force full matrix to print
     original_options = np.get_printoptions()
     np.set_printoptions(threshold=np.inf, linewidth=np.inf)
