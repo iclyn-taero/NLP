@@ -1,0 +1,7 @@
+# Ignore virtual environments
+finalproject/Lib/
+finalproject/Scripts/
+finalproject/Include/
+finalproject/pyvenv.cfg
+*.pyc
+__pycache__/
