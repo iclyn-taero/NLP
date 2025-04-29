@@ -23,10 +23,9 @@ warnings.filterwarnings('ignore')
 
 # --- 1. Download NLTK Resources ---
 print('--- Downloading NLTK Resources ---')
-# Ensure NLTK resources are only downloaded once
-nltk.download('punkt_tab', quiet=True)
 nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
+
 # --- 2. Load Dataset ---
 train_df = pd.read_json('banking77_train.json', lines=True)
 test_df = pd.read_json('banking77_test.json', lines=True)
@@ -46,7 +45,7 @@ print('--- Clean and Preprocess Data ---')
 stop_words = set(stopwords.words('english'))
 def clean_text(text):
     text = text.lower()
-    text = ''.join([c for c in text if c.isalpha() or c.isspace()])  # Keep only letters and spaces
+    text = ''.join([c for c in text if c.isalpha() or c.isspace()])
     tokens = word_tokenize(text)
     tokens = [word for word in tokens if word not in stop_words]
     return ' '.join(tokens)
@@ -57,25 +56,18 @@ x_test = [clean_text(t) for t in x_test]
 # --- 4. Load Embedding Models ---
 print('--- Loading Word2Vec Model ---')
 word2vec_model = api.load('word2vec-google-news-300')
-# Function to get embeddings for a text
+
 def get_w2v_embedding(text, model):
     words = text.split()
     word_vecs = [model[word] for word in words if word in model]
-    if word_vecs:
-        return np.mean(word_vecs, axis=0)
-    else:
-        return np.zeros(model.vector_size)  
+    return np.mean(word_vecs, axis=0) if word_vecs else np.zeros(model.vector_size)
 
 x_train_word2vec = np.array([get_w2v_embedding(text, word2vec_model) for text in x_train])
 x_test_word2vec = np.array([get_w2v_embedding(text, word2vec_model) for text in x_test])
 
-x_train_word2vec = x_train_word2vec.reshape(x_train_word2vec.shape[0], -1)
-x_test_word2vec = x_test_word2vec.reshape(x_test_word2vec.shape[0], -1)
-
-# --- 5. Glove Model ---
+# --- 5. GloVe Model ---
 print('--- GloVe Model ---')
 glove_model = api.load("glove-wiki-gigaword-50")
-x_train_glove, x_test_glove = [], []
 
 def get_glove_embedding(text, model):
     words = text.split()
@@ -85,14 +77,14 @@ def get_glove_embedding(text, model):
 x_train_glove = np.array([get_glove_embedding(text, glove_model) for text in x_train])
 x_test_glove = np.array([get_glove_embedding(text, glove_model) for text in x_test])
 
-# --- 6. Use Model ---
-print('--- Use Model ---')
+# --- 6. Universal Sentence Encoder ---
+print('--- USE Model ---')
 use_model = hub.load('https://tfhub.dev/google/universal-sentence-encoder/4')
 x_train_use = use_model(x_train).numpy()
 x_test_use = use_model(x_test).numpy()
 
-# --- 7. Sentence-Bert Model ---
-print('--- Sentence-Bert Model ---')
+# --- 7. Sentence-BERT ---
+print('--- Sentence-BERT Model ---')
 sbert_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 
 def get_sbert_embedding(text, model):
@@ -102,11 +94,11 @@ x_train_sbert = np.array([get_sbert_embedding(text, sbert_model) for text in x_t
 x_test_sbert = np.array([get_sbert_embedding(text, sbert_model) for text in x_test])
 
 # --- 8. Define Embeddings and Classifiers ---
-print(' --- Define Embeddings and Classifiers ---')
+print('--- Define Embeddings and Classifiers ---')
 embeddings = {
     'Word2Vec': (x_train_word2vec, x_test_word2vec),
     'GloVe': (x_train_glove, x_test_glove), 
-    'USE' : (x_train_use, x_test_use),
+    'USE': (x_train_use, x_test_use),
     'SBERT': (x_train_sbert, x_test_sbert)
 }
 
@@ -127,8 +119,8 @@ classifier_params = {
     })
 }
 
-# ---- 9. Train, Tune, and Evaluate ----
-print(' --- Train, Tune, and Evaluate ---')
+# --- 9. Train, Tune, and Evaluate ---
+print('--- Train, Tune, and Evaluate ---')
 results = []
 
 for embed_name, (X_tr, X_te) in embeddings.items():
@@ -136,7 +128,6 @@ for embed_name, (X_tr, X_te) in embeddings.items():
     for clf_name, (clf, param_grid) in classifier_params.items():
         print(f" Tuning and Training Classifier: {clf_name}")
 
-        # Hyperparameter search
         grid_search = GridSearchCV(clf, param_grid, cv=3, scoring='accuracy', n_jobs=-1, verbose=0)
 
         start_train = time.time()
@@ -164,9 +155,26 @@ for embed_name, (X_tr, X_te) in embeddings.items():
             'Confusion Matrix': cm
         })
 
-# ---- 9. Save and Print Results ----
+# --- 10. Save and Print Results ---
 results_df = pd.DataFrame(results)
+
+# Save metrics (excluding confusion matrix) to CSV
+results_df.drop(columns=['Confusion Matrix']).to_csv('banking77_final_results.csv', index=False)
+
+# Save detailed results with confusion matrix to TXT
+with open("banking77_detailed_results.txt", "w") as f:
+    for res in results:
+        f.write(f"Embedding: {res['Embedding']}\n")
+        f.write(f"Classifier: {res['Classifier']}\n")
+        f.write(f"Best Params: {res['Best Params']}\n")
+        f.write(f"Accuracy: {res['Accuracy']:.4f}\n")
+        f.write(f"F1 Score: {res['F1 Score']:.4f}\n")
+        f.write(f"Training Time (s): {res['Training Time (s)']:.2f}\n")
+        f.write(f"Testing Time (s): {res['Testing Time (s)']:.2f}\n")
+        f.write("Confusion Matrix:\n")
+        f.write(np.array2string(res['Confusion Matrix'], max_line_width=np.inf))
+        f.write("\n" + "="*80 + "\n\n")
+
+# Print summary to console
 print("\nFinal Results Summary:")
 print(results_df[['Embedding', 'Classifier', 'Best Params', 'Accuracy', 'F1 Score', 'Training Time (s)', 'Testing Time (s)']])
-
-results_df.to_csv('banking77_final_results.csv', index=False)
