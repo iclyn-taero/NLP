@@ -25,9 +25,6 @@ nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
 nltk.download('punkt_tab', quiet=True)
 
-from google.colab import files
-uploaded = files.upload()
-
 train_df = pd.read_json('banking77_train.json', lines=True)
 test_df = pd.read_json('banking77_test.json', lines=True)
 
@@ -156,9 +153,6 @@ with open("results.txt", "w") as f:
         f.write("Confusion Matrix:\n")
         f.write(np.array2string(res['Confusion Matrix'], max_line_width=np.inf))
         f.write("\n" + "="*80 + "\n\n")
-
-# Download results
-files.download("google_collab_results.txt")
 
 # Show summary
 print("\nFinal Results Summary:")
